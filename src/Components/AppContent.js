@@ -10,6 +10,12 @@ import SearchIcon from "@material-ui/icons/Search";
 import AddIcon from "@material-ui/icons/Add";
 import InputAdornment from "@material-ui/core/InputAdornment";
 import Typography from "@material-ui/core/Typography";
+import Button from "@material-ui/core/Button";
+import Dialog from "@material-ui/core/Dialog";
+import DialogActions from "@material-ui/core/DialogActions";
+import DialogContent from "@material-ui/core/DialogContent";
+import DialogContentText from "@material-ui/core/DialogContentText";
+import DialogTitle from "@material-ui/core/DialogTitle";
 
 const useStyles = makeStyles((theme) => ({
   contentContainer: {
@@ -50,6 +56,9 @@ const useStyles = makeStyles((theme) => ({
     padding: theme.spacing(0, 2.2),
     maxWidth: 300,
   },
+  claimBtn: {
+    marginTop: "20px",
+  },
 }));
 
 export default function AppContent() {
@@ -69,7 +78,12 @@ export default function AppContent() {
 
   const Firebase = React.useContext(FirebaseContext);
   const [customerData, setCustomerData] = React.useState(null);
+  const [open, setOpen] = React.useState(false);
   const { enqueueSnackbar } = useSnackbar();
+
+  const handleClose = () => {
+    setOpen(false);
+  };
 
   const validateInput = (val) => {
     switch (val.length) {
@@ -128,6 +142,26 @@ export default function AppContent() {
     );
   };
 
+  const handleReset = ({ phoneNumber, cardNumber, points }) => {
+    Firebase.resetCustomerPoints(
+      phoneNumber,
+      cardNumber,
+      points,
+      setCustomerData
+    ).then((status) => {
+      switch (status) {
+        case 200:
+          enqueueSnackbar("Points Successfully Claimed");
+          break;
+
+        default:
+          enqueueSnackbar("Some Unexpected Error Occured");
+          break;
+      }
+    });
+    setOpen(false);
+  };
+
   return (
     <Container className={classes.contentContainer}>
       <form noValidate onSubmit={getUnqNum((data) => submitHandler(data))}>
@@ -168,70 +202,103 @@ export default function AppContent() {
         />
       </form>
       {!!customerData && (
-        <Grid container className={classes.customerDataContainer}>
-          <Grid item xs={4}>
-            <Typography variant='h6' className={classes.border}>
-              <b>Customer Name</b>
-            </Typography>
-            <Typography variant='h6' className={classes.paddingSide}>
-              {customerData.name}
-            </Typography>
-          </Grid>
-          <Grid item xs={3}>
-            <Typography variant='h6' className={classes.border}>
-              <b>Current Points</b>
-            </Typography>
-            <Typography variant='h6' className={classes.paddingSide}>
-              {customerData.points}
-            </Typography>
-          </Grid>
-          <Grid item xs={3}>
-            <Typography variant='h6' className={classes.border}>
-              <b>Current Bill Amount</b>
-            </Typography>
-            <Typography variant='h6' className={classes.paddingSide}>
-              <form
-                noValidate
-                onSubmit={getBillAmt((data) => updateHandler(data))}
+        <>
+          <Grid container className={classes.customerDataContainer}>
+            <Grid item xs={4}>
+              <Typography variant='h6' className={classes.border}>
+                <b>Customer Name</b>
+              </Typography>
+              <Typography variant='h6' className={classes.paddingSide}>
+                {customerData.name}
+              </Typography>
+            </Grid>
+            <Grid item xs={3}>
+              <Typography variant='h6' className={classes.border}>
+                <b>Current Points</b>
+              </Typography>
+              <Typography variant='h6' className={classes.paddingSide}>
+                {customerData.points}
+              </Typography>
+            </Grid>
+            <Grid item xs={3}>
+              <Typography variant='h6' className={classes.border}>
+                <b>Current Bill Amount</b>
+              </Typography>
+              <Typography variant='h6' className={classes.paddingSide}>
+                <form
+                  noValidate
+                  onSubmit={getBillAmt((data) => updateHandler(data))}
+                >
+                  <TextField
+                    id='bill amount'
+                    label='Enter Bill Amount'
+                    type='text'
+                    name='billAmount'
+                    color='primary'
+                    className={classes.inputField}
+                    variant='outlined'
+                    InputProps={{
+                      style: { color: "white" },
+                      endAdornment: (
+                        <button
+                          type='submit'
+                          style={{
+                            backgroundColor: "transparent",
+                            border: "none",
+                            color: "white",
+                            outline: "none",
+                          }}
+                        >
+                          <InputAdornment position='end'>
+                            <AddIcon />
+                          </InputAdornment>
+                        </button>
+                      ),
+                    }}
+                    inputRef={billAmt({
+                      required: true,
+                      pattern: /^[0-9]*$/,
+                    })}
+                    error={billAmtError.billAmount}
+                    helperText={billAmtError.billAmount && "Must be a number"}
+                    size='small'
+                  />
+                </form>
+              </Typography>
+            </Grid>
+            <Grid item xs={12} className={classes.claimBtn}>
+              <Button
+                onClick={() => {
+                  setOpen(true);
+                }}
+                variant='contained'
+                color='primary'
               >
-                <TextField
-                  id='bill amount'
-                  label='Enter Bill Amount'
-                  type='text'
-                  name='billAmount'
-                  color='primary'
-                  className={classes.inputField}
-                  variant='outlined'
-                  InputProps={{
-                    style: { color: "white" },
-                    endAdornment: (
-                      <button
-                        type='submit'
-                        style={{
-                          backgroundColor: "transparent",
-                          border: "none",
-                          color: "white",
-                          outline: "none",
-                        }}
-                      >
-                        <InputAdornment position='end'>
-                          <AddIcon />
-                        </InputAdornment>
-                      </button>
-                    ),
-                  }}
-                  inputRef={billAmt({
-                    required: true,
-                    pattern: /^[0-9]*$/,
-                  })}
-                  error={billAmtError.billAmount}
-                  helperText={billAmtError.billAmount && "Must be a number"}
-                  size='small'
-                />
-              </form>
-            </Typography>
+                Claim Points for Customer
+              </Button>
+            </Grid>
           </Grid>
-        </Grid>
+
+          <Dialog open={open} onClose={handleClose}>
+            <DialogTitle>{"Claim Customer Points?"}</DialogTitle>
+            <DialogContent>
+              <DialogContentText style={{ color: "black" }}>
+                By clicking this button , the customers points will be reset to
+                0. Click the 'Claim' button below to proceed
+              </DialogContentText>
+            </DialogContent>
+            <DialogActions>
+              <Button
+                onClick={() => handleReset(customerData)}
+                variant='outlined'
+                color='secondary'
+                autoFocus
+              >
+                Claim
+              </Button>
+            </DialogActions>
+          </Dialog>
+        </>
       )}
     </Container>
   );

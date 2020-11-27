@@ -20,8 +20,6 @@ class Firebase {
 
     this.firestore = app.firestore;
 
-    this.templateText = "hey+mayank+here";
-
     this.getPoints = (billAmount) => {
       if (billAmount <= 2000) {
         return Math.ceil(billAmount * 0.02);
@@ -42,6 +40,7 @@ class Firebase {
         phoneNumber: phNum,
         cardNumber: crdNum,
         points: this.getPoints(billAmt),
+        prevPoints: 0,
       });
   };
 
@@ -68,13 +67,20 @@ class Firebase {
 
   updateCustomerData = async (amount, data, setData) => {
     const gainedPoints = this.getPoints(amount);
+    const updatedPoints = Number(data.points) + Number(gainedPoints);
+    //TEMPLATE TEXT HERE
+    const WHATSAPP_TEXT = `Thank+you+for+shopping+with+us.+${String(
+      gainedPoints
+    )}+points+have+been+added+to+your+card+with+card+number+${
+      data.cardNumber
+    }.+Your+current+points+are+now+${String(
+      updatedPoints
+    )}.+Do+visit+us+again!${encodeURIComponent("😊")}`;
     const customerDoc = this.firestore()
       .collection("customers")
       .doc(`${data.phoneNumber}_${data.cardNumber}`);
     customerDoc
-      .update({
-        points: Number(data.points) + Number(gainedPoints),
-      })
+      .update({ points: updatedPoints, prevPoints: Number(data.points) })
       .catch(() => alert("UPDATE FAILED, contact admin and report"));
     const snapShot = await customerDoc.get();
     if (snapShot.empty) {
@@ -82,9 +88,25 @@ class Firebase {
     } else {
       setData(snapShot.data());
       window.open(
-        `https://api.whatsapp.com/send?phone=+91${data.phoneNumber}&text=${this.templateText}`,
+        `https://api.whatsapp.com/send?phone=+91${data.phoneNumber}&text=${WHATSAPP_TEXT}`,
         "_blank"
       );
+      return 200;
+    }
+  };
+
+  resetCustomerPoints = async (phNum, crdNum, pts, setData) => {
+    const customerDoc = this.firestore()
+      .collection("customers")
+      .doc(`${phNum}_${crdNum}`);
+    customerDoc
+      .update({ points: Number(0), prevPoints: Number(pts) })
+      .catch(() => alert("RESET FAILED, retry or manually reset."));
+    const snapShot = await customerDoc.get();
+    if (snapShot.empty) {
+      return 404;
+    } else {
+      setData(snapShot.data());
       return 200;
     }
   };
